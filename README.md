@@ -19,3 +19,7 @@ Constraints:
 * You must be on Lua 5.2.x or Lua 5.3.x.  Earlier versions are not supported, nor is Lua 5.4 supported.
 
 One big note: I am primarily a game developer, not an open-source library creator.  This code is provided as-is.  No effort has been made to get this to work on other platforms or compilers, but it *should* be fine.  I will continue to update it with features and bug fixes, but probably won't create a fancy CMAKE script or anything.  If you want to do that, go for it.  :)  Feel free to submit a pull request if you like and I'll integrate it in.
+
+##Getting Started
+
+The best way to get started is to load up the sample project and see how it works.  It's heavily commented and demonstrates the key features of the library.  There's a lot more of course, but this should get you started.  Feel free to message me if you have any questions at all.
