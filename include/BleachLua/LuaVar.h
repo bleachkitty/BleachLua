@@ -132,7 +132,6 @@ public:
 
     void ClearRef();  // effectively destroys this object, though m_pState will not be changed
     bool IsValid() const { return (m_pState && m_reference != LUA_REFNIL); }
-    void SetDefaultLuaState() { m_pState = s_pDefaultLuaState; }
     void SetLuaState(LuaState* pState) { m_pState = pState; }
     LuaState* GetLuaState() const { return m_pState; }
 

@@ -124,7 +124,7 @@ bool LuaState::DoFile(const char* path)
     CHECK_FOR_PCALL_EXCEPTION(m_pState, result);
 
     result = lua_pcall(m_pState, 0, 0, -2);             //  [exHandler, error?]
-    if (result == LUA_OK)
+    if (result != LUA_OK)
         return false;                                   //  []  <-- from StackResetter
 
     return true;                                        //  []  <-- from StackResetter
