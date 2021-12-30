@@ -134,6 +134,7 @@ public:
     bool IsValid() const { return (m_pState && m_reference != LUA_REFNIL); }
     void SetLuaState(LuaState* pState) { m_pState = pState; }
     LuaState* GetLuaState() const { return m_pState; }
+    void SetLuaStateToDefault() { m_pState = s_pDefaultLuaState; }
 
     // sets the LuaVar value, overwriting any existing value (and type)
     template <typename IntType = LuaInt> void SetInteger(IntType val);

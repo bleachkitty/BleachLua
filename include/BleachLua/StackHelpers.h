@@ -29,6 +29,7 @@
 #include "InternalLuaState.h"
 #include "LuaStl.h"
 #include "LuaError.h"
+#include <cmath>
 
 namespace BleachLua {
 
@@ -170,6 +171,120 @@ luastl::enable_if_t<IsLuaUserData<Type>::value> Push(LuaState* pState, Type val)
 // Note: The LuaVar version of Push() is in LuaVar.h
 
 //---------------------------------------------------------------------------------------------------------------------
+// Is()
+//---------------------------------------------------------------------------------------------------------------------
+// bool
+template <class Type>
+luastl::enable_if_t<IsLuaBool<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
+{
+    LUA_ASSERT(pState);
+    return lua_isboolean(pState->GetState(), stackIndex);
+}
+
+// integer
+#if BLEACHLUA_CORE_VERSION >= 53
+
+// Typical case for int
+template <class Type>
+luastl::enable_if_t<IsLuaTrueInteger<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
+{
+    LUA_ASSERT(pState);
+    return lua_isinteger(pState->GetState(), stackIndex);
+}
+
+// Special case for uint64_t, which Lua doesn't support.  This is exactly the same as the case above except that 
+// in debug mode we kick out an error if we detect a truly unsigned 64-bit int.  See the comment at the top of 
+// this file for details.
+template <class Type>
+luastl::enable_if_t<IsLuaUnsigned<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
+{
+    if (lua_isinteger(pState->GetState(), stackIndex))
+    {
+        return true;
+    }
+#if BLEACHLUA_DEBUG_MODE
+    else if (lua_isnumber(pState->GetState(), stackIndex))
+    {
+        const lua_Number num = lua_tonumber(pState->GetState(), stackIndex);
+        if (num - std::floor(num) == 0.0)
+        {
+            LUA_ERROR("You've passed in a value to Is() that's greater than the max size allowed by a signed 64-bit int.  Lua doesn't support unsigned 64-bit ints, so you must convert this to a signed int first.  It will be converted back to an unsigned int when passed into C++.");
+        }
+    }
+#endif
+
+    return false;
+}
+
+#else  // BLEACHLUA_CORE_VERSION <= 52
+
+template <class Type>
+luastl::enable_if_t<IsLuaTrueInteger<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
+{
+    LUA_ASSERT(pState);
+
+    // TODO: Fix the Window system so we can revert this.
+#if 1
+    // Lua 5.2 and below have no internal concept of an int, so we have to get the number and subtract the floor of 
+    // it.  If it's non-zero, this can't be an int.
+    if (lua_isnumber(pState->GetState(), stackIndex))
+    {
+        const lua_Number num = lua_tonumber(pState->GetState(), stackIndex);
+        if (num - std::floor(num) == 0)
+            return true;
+    }
+
+    return false;
+#else
+    return lua_isnumber(pState->GetState(), stackIndex);
+#endif
+}
+#endif  // BLEACHLUA_CORE_VERSION
+
+// number
+template <class Type>
+luastl::enable_if_t<IsLuaNumber<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
+{
+    LUA_ASSERT(pState);
+    return lua_isnumber(pState->GetState(), stackIndex);
+}
+
+// string
+template <class Type>
+luastl::enable_if_t<IsLuaString<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
+{
+    LUA_ASSERT(pState);
+    return lua_isstring(pState->GetState(), stackIndex);
+}
+
+// nil
+template <class Type>
+luastl::enable_if_t<IsLuaNil<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
+{
+    LUA_ASSERT(pState);
+    return lua_isnil(pState->GetState(), stackIndex);
+}
+
+// function
+template <class Type>
+luastl::enable_if_t<IsLuaFunction<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
+{
+    LUA_ASSERT(pState);
+    return lua_iscfunction(pState->GetState(), stackIndex);
+}
+
+// userdata
+// Note: Either userdata or lightuserdata will be valid.
+template <class Type>
+luastl::enable_if_t<IsLuaUserData<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
+{
+    LUA_ASSERT(pState);
+    return (lua_islightuserdata(pState->GetState(), stackIndex) || lua_isuserdata(pState->GetState(), stackIndex));
+}
+
+// Note: The LuaVar version of Is() is in LuaVar.h
+
+//---------------------------------------------------------------------------------------------------------------------
 // Get()
 //---------------------------------------------------------------------------------------------------------------------
 // bool
@@ -291,122 +406,6 @@ luastl::enable_if_t<IsLuaUserData<Type>::value, Type> Get(LuaState* pState, int 
 }
 
 // Note: The LuaVar version of Get() is in LuaVar.h
-
-
-//---------------------------------------------------------------------------------------------------------------------
-// Is()
-//---------------------------------------------------------------------------------------------------------------------
-// bool
-template <class Type>
-luastl::enable_if_t<IsLuaBool<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
-{
-    LUA_ASSERT(pState);
-    return lua_isboolean(pState->GetState(), stackIndex);
-}
-
-// integer
-#if BLEACHLUA_CORE_VERSION >= 53
-
-// Typical case for int
-template <class Type>
-luastl::enable_if_t<IsLuaTrueInteger<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
-{
-    LUA_ASSERT(pState);
-    return lua_isinteger(pState->GetState(), stackIndex);
-}
-
-// Special case for uint64_t, which Lua doesn't support.  This is exactly the same as the case above except that 
-// in debug mode we kick out an error if we detect a truly unsigned 64-bit int.  See the comment at the top of 
-// this file for details.
-template <class Type>
-luastl::enable_if_t<IsLuaUnsigned<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
-{
-    if (lua_isinteger(pState->GetState(), stackIndex))
-    {
-        return true;
-    }
-#if BLEACHLUA_DEBUG_MODE
-    else if (lua_isnumber(pState->GetState(), stackIndex))
-    {
-        const lua_Number num = lua_tonumber(pState->GetState(), stackIndex);
-        if (num - std::floor(num) == 0.0)
-        {
-            LUA_ERROR("You've passed in a value to Is() that's greater than the max size allowed by a signed 64-bit int.  Lua doesn't support unsigned 64-bit ints, so you must convert this to a signed int first.  It will be converted back to an unsigned int when passed into C++.");
-        }
-    }
-#endif
-
-    return false;
-}
-
-#else  // BLEACHLUA_CORE_VERSION <= 52
-
-template <class Type>
-luastl::enable_if_t<IsLuaTrueInteger<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
-{
-    LUA_ASSERT(pState);
-
-    // TODO: Fix the Window system so we can revert this.
-#if 1
-    // Lua 5.2 and below have no internal concept of an int, so we have to get the number and subtract the floor of 
-    // it.  If it's non-zero, this can't be an int.
-    if (lua_isnumber(pState->GetState(), stackIndex))
-    {
-        const lua_Number num = lua_tonumber(pState->GetState(), stackIndex);
-        if (num - floor(num) == 0)
-            return true;
-    }
-
-    return false;
-#else
-    return lua_isnumber(pState->GetState(), stackIndex);
-#endif
-}
-#endif  // BLEACHLUA_CORE_VERSION
-
-// number
-template <class Type>
-luastl::enable_if_t<IsLuaNumber<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
-{
-    LUA_ASSERT(pState);
-    return lua_isnumber(pState->GetState(), stackIndex);
-}
-
-// string
-template <class Type>
-luastl::enable_if_t<IsLuaString<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
-{
-    LUA_ASSERT(pState);
-    return lua_isstring(pState->GetState(), stackIndex);
-}
-
-// nil
-template <class Type>
-luastl::enable_if_t<IsLuaNil<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
-{
-    LUA_ASSERT(pState);
-    return lua_isnil(pState->GetState(), stackIndex);
-}
-
-// function
-template <class Type>
-luastl::enable_if_t<IsLuaFunction<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
-{
-    LUA_ASSERT(pState);
-    return lua_iscfunction(pState->GetState(), stackIndex);
-}
-
-// userdata
-// Note: Either userdata or lightuserdata will be valid.
-template <class Type>
-luastl::enable_if_t<IsLuaUserData<Type>::value, bool> Is(LuaState* pState, int stackIndex = -1)
-{
-    LUA_ASSERT(pState);
-    return (lua_islightuserdata(pState->GetState(), stackIndex) || lua_isuserdata(pState->GetState(), stackIndex));
-}
-
-// Note: The LuaVar version of Is() is in LuaVar.h
-
 
 //---------------------------------------------------------------------------------------------------------------------
 // Misc

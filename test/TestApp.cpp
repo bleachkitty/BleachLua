@@ -193,5 +193,13 @@ int TestApp::SumValues(LuaVar values)
         total += val.GetInteger();  // interpret the LuaVar as an int
     }
 
+    // This version uses a key/value pair object, similar to unorder_map's, in case you don't want to use the 
+    // structured binding approach.
+    //for (const auto& keyValPair : values)
+    //{
+    //    assert(keyValPair.GetKey().IsInteger());  // make sure it's an int; LuaVar can be anything
+    //    total += keyValPair.GetValue().GetInteger();  // interpret the LuaVar as an int
+    //}
+
     return total;
 }
