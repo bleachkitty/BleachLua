@@ -212,7 +212,7 @@ luastl::enable_if_t<IsLuaUnsigned<Type>::value, Type> Get(LuaState* pState, int 
     const Type ret = static_cast<Type>(lua_tointegerx(pState->GetState(), stackIndex, &success));
     if (!success)
     {
-#if BLEACHLUA_DEBUG
+#if BLEACHLUA_DEBUG_MODE
         if (Is<lua_Number>(pState, stackIndex))
         {
             const lua_Number num = Get<lua_Number>(pState, stackIndex);
@@ -225,7 +225,7 @@ luastl::enable_if_t<IsLuaUnsigned<Type>::value, Type> Get(LuaState* pState, int 
         {
             LUA_ERROR("Failed to convert value to uint64_t.  Type is " + luastl::string(lua_typename(pState->GetState(), lua_type(pState->GetState(), -1))));
         }
-#endif
+#endif  // BLEACHLUA_DEBUG_MODE
         return GetDefault<Type>();
     }
     return ret;
@@ -325,7 +325,7 @@ luastl::enable_if_t<IsLuaUnsigned<Type>::value, bool> Is(LuaState* pState, int s
     {
         return true;
     }
-#if BLEACHLUA_DEBUG
+#if BLEACHLUA_DEBUG_MODE
     else if (lua_isnumber(pState->GetState(), stackIndex))
     {
         const lua_Number num = lua_tonumber(pState->GetState(), stackIndex);
@@ -424,7 +424,7 @@ Type GetFromStack(LuaState* pState, [[maybe_unused]] bool showErrorOnUnderrun = 
     }
     else
     {
-#if BLEACHLUA_DEBUG
+#if BLEACHLUA_DEBUG_MODE
         if (showErrorOnUnderrun)
             LUA_ERROR("Lua stack underrun: Trying to pop value from empty stack.");
 #endif

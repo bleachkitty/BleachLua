@@ -62,7 +62,7 @@ public:
     void Increment() { ++m_refCount; }
     bool Decrement()
     {
-#if BLEACHLUA_DEBUG
+#if BLEACHLUA_DEBUG_MODE
         if (m_refCount > 0)
             --m_refCount;
         else
@@ -347,7 +347,7 @@ inline LuaVar GetFromStack<LuaVar>(LuaState* pState, [[maybe_unused]] bool showE
     }
     else
     {
-#if BLEACHLUA_DEBUG
+#if BLEACHLUA_DEBUG_MODE
         if (showErrorOnUnderrun)
             LUA_ERROR("Lua stack underrun: Trying to pop value from empty stack.");
 #endif
