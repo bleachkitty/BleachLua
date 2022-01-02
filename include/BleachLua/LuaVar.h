@@ -258,8 +258,7 @@ private:
     bool CompareHelper(const LuaVar& right, int op) const;
 
     // performs a Lua action on the object
-    template <class Func> auto DoLuaAction(Func func, bool allowNil = false) const -> luastl::enable_if_t< luastl::is_void<decltype(func())>::value, decltype(func())>;
-    template <class Func> auto DoLuaAction(Func func, bool allowNil = false) const -> luastl::enable_if_t<!luastl::is_void<decltype(func())>::value, decltype(func())>;
+    template <class Func> auto DoLuaAction(Func func, bool allowNil = false) const -> decltype(func());
 
     // copy/move functions
     void Copy(const LuaVar& right);
@@ -274,16 +273,13 @@ private:
 
     // global function registration helpers
     template <class Func> static int CallBoundFunction(lua_State* pState);  // for C functions or static functions
-    template <class RetType, class... Args> static luastl::enable_if_t<luastl::is_void<RetType>::value, int> Call(lua_State* pState, RetType(*pFunc)(Args... args));
-    template <class RetType, class... Args> static luastl::enable_if_t<!luastl::is_void<RetType>::value, int> Call(lua_State* pState, RetType(*pFunc)(Args... args));
+    template <class RetType, class... Args> static int Call(lua_State* pState, RetType(*pFunc)(Args... args));
 
     // member function registration helpers
     template <class Obj, class Func> static int CallBoundMemberFunctionObjPair(lua_State* pState);  // for when the same object is always used
     template <class Obj, class Func> static int CallBoundMemberFunction(lua_State* pState);  // for when the object is passed in through the __object field
-    template <class Obj, class RetType, class... Args> static luastl::enable_if_t<luastl::is_void<RetType>::value, int> Call(lua_State* pState, Obj* pObj, RetType(Obj::*pFunc)(Args... args));
-    template <class Obj, class RetType, class... Args> static luastl::enable_if_t<!luastl::is_void<RetType>::value, int> Call(lua_State* pState, Obj* pObj, RetType(Obj::*pFunc)(Args... args));
-    template <class Obj, class RetType, class... Args> static luastl::enable_if_t<luastl::is_void<RetType>::value, int> Call(lua_State* pState, const Obj* pObj, RetType(Obj::* pFunc)(Args... args) const);
-    template <class Obj, class RetType, class... Args> static luastl::enable_if_t<!luastl::is_void<RetType>::value, int> Call(lua_State* pState, const Obj* pObj, RetType(Obj::* pFunc)(Args... args) const);
+    template <class Obj, class RetType, class... Args> static int Call(lua_State* pState, Obj* pObj, RetType(Obj::*pFunc)(Args... args));
+    template <class Obj, class RetType, class... Args> static int Call(lua_State* pState, const Obj* pObj, RetType(Obj::* pFunc)(Args... args) const);
 
     // helpers to build the arguments tuple
     template <class... Args> luastl::tuple<Args...> static BuildArguments(LuaState* pState);
@@ -605,37 +601,36 @@ void LuaVar::BindFunction(const char* name, Func&& func) const
 //                  at the end, so no need to pop it.
 //      -return:    Whatever the passed-in function returns.  Note that if the passed-in function has a void return, 
 //                  the void-return version of this function is used.
+//                  TODO: Replace the return value with luastl::optional.
 //---------------------------------------------------------------------------------------------------------------------
-template <class Func> auto LuaVar::DoLuaAction(Func func, bool allowNil  /*= false*/) const -> luastl::enable_if_t<luastl::is_void<decltype(func())>::value, decltype(func())>
+template <class Func>
+auto LuaVar::DoLuaAction(Func func, bool allowNil /*= false*/) const -> decltype(func())
 {
     LUA_ASSERT(m_pState);
 
     // Grab the value from the registry if it's valid.  If not, and we want to allow nil values, push a nil value 
     // to the stack.  Otherwise, we do nothing.
     if (!PushValueToStack(allowNil))
-        return;
+    {
+        if constexpr (luastl::is_void_v<decltype(func())>)
+            return;
+        else
+            return {};  // return a zero-initialized value
+    }
 
     // If we get here, the top of the stack should hold our value.
-    func();
-    lua_pop(m_pState->GetState(), 1);
-}
+    if constexpr (luastl::is_void_v<decltype(func())>)
+    {
+        func();
+        lua_pop(m_pState->GetState(), 1);
+    }
+    else
+    {
+        auto ret = func();
+        lua_pop(m_pState->GetState(), 1);
 
-template <class Func> auto LuaVar::DoLuaAction(Func func, bool allowNil  /*= false*/) const -> luastl::enable_if_t<!luastl::is_void<decltype(func())>::value, decltype(func())>
-{
-    LUA_ASSERT(m_pState);
-
-    decltype(func()) ret = {};  // zero-initialize whatever we're supposed to return
-
-    // Grab the value from the registry if it's valid.  If not, and we want to allow nil values, push a nil value 
-    // to the stack.  Otherwise, we do nothing.
-    if (!PushValueToStack(allowNil))
-        return ret;  // this will be the default-initialized return value
-
-    // If we get here, the top of the stack should hold our value.
-    ret = func();
-    lua_pop(m_pState->GetState(), 1);
-
-    return ret;
+        return ret;
+    }
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -880,54 +875,57 @@ int LuaVar::CallBoundMemberFunction(lua_State* pState)
 //                  this function.
 //---------------------------------------------------------------------------------------------------------------------
 template <class RetType, class... Args>
-luastl::enable_if_t<luastl::is_void<RetType>::value, int> LuaVar::Call(lua_State* pState, RetType(*pFunc)(Args... args))
+int LuaVar::Call(lua_State* pState, RetType(*pFunc)(Args... args))
 {
     LuaState* pCppState = GetCppStateFromCState(pState);
-    luastl::apply(pFunc, BuildArguments<Args...>(pCppState));
-    return 0;
-}
 
-template <class RetType, class... Args>
-luastl::enable_if_t<!luastl::is_void<RetType>::value, int> LuaVar::Call(lua_State* pState, RetType(*pFunc)(Args... args))
-{
-    LuaState* pCppState = GetCppStateFromCState(pState);
-    RetType val = luastl::apply(pFunc, BuildArguments<Args...>(pCppState));
-    StackHelpers::Push(pCppState, val);
-    return 1;
-}
-
-template <class Obj, class RetType, class... Args>
-luastl::enable_if_t<luastl::is_void<RetType>::value, int> LuaVar::Call(lua_State* pState, Obj* pObj, RetType(Obj::*pFunc)(Args... args))
-{
-    LuaState* pCppState = GetCppStateFromCState(pState);
-    luastl::apply(pFunc, BuildArgumentsWithObj<Obj, Args...>(pCppState, pObj));
-    return 0;
+    if constexpr (luastl::is_void_v<RetType>)
+    {
+        luastl::apply(pFunc, BuildArguments<Args...>(pCppState));
+        return 0;
+    }
+    else
+    {
+        RetType val = luastl::apply(pFunc, BuildArguments<Args...>(pCppState));
+        StackHelpers::Push(pCppState, val);
+        return 1;
+    }
 }
 
 template <class Obj, class RetType, class... Args>
-luastl::enable_if_t<!luastl::is_void<RetType>::value, int> LuaVar::Call(lua_State* pState, Obj* pObj, RetType(Obj::*pFunc)(Args... args))
+int LuaVar::Call(lua_State* pState, Obj* pObj, RetType(Obj::*pFunc)(Args... args))
 {
     LuaState* pCppState = GetCppStateFromCState(pState);
-    RetType val = luastl::apply(pFunc, BuildArgumentsWithObj<Obj, Args...>(pCppState, pObj));
-    StackHelpers::Push(pCppState, val);
-    return 1;
+
+    if constexpr (luastl::is_void_v<RetType>)
+    {
+        luastl::apply(pFunc, BuildArgumentsWithObj<Obj, Args...>(pCppState, pObj));
+        return 0;
+    }
+    else
+    {
+        RetType val = luastl::apply(pFunc, BuildArgumentsWithObj<Obj, Args...>(pCppState, pObj));
+        StackHelpers::Push(pCppState, val);
+        return 1;
+    }
 }
 
 template <class Obj, class RetType, class... Args>
-luastl::enable_if_t<luastl::is_void<RetType>::value, int> LuaVar::Call(lua_State* pState, const Obj* pObj, RetType(Obj::* pFunc)(Args... args) const)
+int LuaVar::Call(lua_State* pState, const Obj* pObj, RetType(Obj::* pFunc)(Args... args) const)
 {
     LuaState* pCppState = GetCppStateFromCState(pState);
-    luastl::apply(pFunc, BuildArgumentsWithObj<const Obj, Args...>(pCppState, pObj));
-    return 0;
-}
 
-template <class Obj, class RetType, class... Args>
-luastl::enable_if_t<!luastl::is_void<RetType>::value, int> LuaVar::Call(lua_State* pState, const Obj* pObj, RetType(Obj::* pFunc)(Args... args) const)
-{
-    LuaState* pCppState = GetCppStateFromCState(pState);
-    RetType val = luastl::apply(pFunc, BuildArgumentsWithObj<const Obj, Args...>(pCppState, pObj));
-    StackHelpers::Push(pCppState, val);
-    return 1;
+    if constexpr (luastl::is_void_v<RetType>)
+    {
+        luastl::apply(pFunc, BuildArgumentsWithObj<const Obj, Args...>(pCppState, pObj));
+        return 0;
+    }
+    else
+    {
+        RetType val = luastl::apply(pFunc, BuildArgumentsWithObj<const Obj, Args...>(pCppState, pObj));
+        StackHelpers::Push(pCppState, val);
+        return 1;
+    }
 }
 
 //---------------------------------------------------------------------------------------------------------------------
