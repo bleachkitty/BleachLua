@@ -105,7 +105,7 @@ public:
                 // answer once C++ 20 is supported.  This will allow us to catch the error at compile-time rather 
                 // than run-time.
                 LUA_ERROR("N must be 0 or 1.");
-                return ScriptVar(m_key.GetLuaState());  // return nil
+                return LuaVar(m_key.GetLuaState());  // return nil
             }
         }
     };
