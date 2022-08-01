@@ -89,11 +89,24 @@ public:
         decltype(auto) get() const
         {
             if constexpr (N == 0)
+            {
                 return m_key;
+            }
             else if constexpr (N == 1)
+            {
                 return m_value;
+            }
             else
-                static_assert(false, "N must be 0 or 1.");
+            {
+                // We used to do static_assert here, which worked, but is apparently ill-formed:
+                // https://stackoverflow.com/questions/38304847/constexpr-if-and-static-assert
+                // 
+                // TODO C++ 20: Consider switching to the templated lambda solution in the above StackOverflow 
+                // answer once C++ 20 is supported.  This will allow us to catch the error at compile-time rather 
+                // than run-time.
+                LUA_ERROR("N must be 0 or 1.");
+                return ScriptVar(m_key.GetLuaState());  // return nil
+            }
         }
     };
 
