@@ -27,13 +27,6 @@
 #include "InternalLuaState.h"
 #include "StackHelpers.h"
 #include "LuaError.h"
-
-// LuaVar.h is required to be included before LuaState.h.  This is a workaround so the user doesn't have to care.
-// The downside is that LuaVar.h is a very large file that's not technically needed here unless both are being used, 
-// so this adds a possibly unnecessary large compile-time cost.
-// 
-// TODO: Fix this dependency.  This should be trivial in C++ 20 with modules, but there is likely a better way to 
-// structure things now to get around this.
 #include "LuaVar.h"
 
 //---------------------------------------------------------------------------------------------------------------------

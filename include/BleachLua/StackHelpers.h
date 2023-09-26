@@ -295,6 +295,14 @@ luastl::enable_if_t<IsLuaBool<Type>::value, Type> Get(LuaState* pState, int stac
     return lua_toboolean(pState->GetState(), stackIndex);
 }
 
+// number
+template <class Type>
+luastl::enable_if_t<IsLuaNumber<Type>::value, Type> Get(LuaState* pState, int stackIndex = -1)
+{
+    LUA_ASSERT(pState);
+    return static_cast<Type>(lua_tonumber(pState->GetState(), stackIndex));
+}
+
 // integer
 #if BLEACHLUA_CORE_VERSION >= 53
 
@@ -314,7 +322,7 @@ luastl::enable_if_t<IsLuaTrueInteger<Type>::value, Type> Get(LuaState* pState, i
 }
 
 // This is the special-case for uint64_t.  If the value originally came from C++, it should have been converted into 
-// a signed 64-bit int, so we should able to read it normally and cast it to unsigned here.  The purpose of this 
+// a signed 64-bit int, so we should be able to read it normally and cast it to unsigned here.  The purpose of this 
 // function is to have some additional error checking in case an unsigned 64-bit literal (or something similar) is 
 // passed in.
 // 
@@ -363,14 +371,6 @@ luastl::enable_if_t<IsLuaInteger<Type>::value, Type> Get(LuaState* pState, int s
     return ret;
 }
 #endif
-
-// number
-template <class Type>
-luastl::enable_if_t<IsLuaNumber<Type>::value, Type> Get(LuaState* pState, int stackIndex = -1)
-{
-    LUA_ASSERT(pState);
-    return static_cast<Type>(lua_tonumber(pState->GetState(), stackIndex));
-}
 
 // string 
 template <class Type>

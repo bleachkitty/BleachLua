@@ -137,8 +137,8 @@ public:
     void SetLuaStateToDefault() { m_pState = s_pDefaultLuaState; }
 
     // sets the LuaVar value, overwriting any existing value (and type)
-    template <typename IntType = LuaInt> void SetInteger(IntType val);
-    template <typename FloatType = LuaFloat> void SetNumber(FloatType val);
+    template <typename IntType> void SetInteger(IntType val);
+    template <typename FloatType> void SetNumber(FloatType val);
     void SetString(const char* val);
     void SetNil();
     void SetBool(bool val);
@@ -146,8 +146,8 @@ public:
     template <class Type> void SetValue(Type value);
 
     // attempts to convert the current value to the appropriate type and returns it
-    template <typename IntType = LuaInt> IntType GetInteger() const;
-    template <typename FloatType = LuaFloat> FloatType GetNumber() const;
+    template <typename IntType> IntType GetInteger() const;
+    template <typename FloatType> FloatType GetNumber() const;
     const char* GetString() const;  // Important!  This will convert the item to a lua string!
     bool GetBool() const;
     void* GetLightUserData() const;

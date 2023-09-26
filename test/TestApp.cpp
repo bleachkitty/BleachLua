@@ -190,7 +190,7 @@ int TestApp::SumValues(LuaVar values)
     for (const auto& [key, val] : values)
     {
         assert(val.IsInteger());  // make sure it's an int; LuaVar can be anything
-        total += val.GetInteger();  // interpret the LuaVar as an int
+        total += val.GetInteger<int>();  // interpret the LuaVar as an int
     }
 
     // This version uses a key/value pair object, similar to unorder_map's, in case you don't want to use the 
